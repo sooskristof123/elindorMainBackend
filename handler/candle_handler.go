@@ -1,9 +1,11 @@
 package handler
 
 import (
-	"elindor/service"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"elindor/service"
 )
 
 type CandleHandler struct {
@@ -21,6 +23,12 @@ func NewCandleHandler(candleService service.CandleService) *CandleHandler {
 }
 
 func (ch *CandleHandler) GetCandles(ctx *gin.Context) {
-	candles := ch.CandleService.GetCandles(ctx)
+	candles, err := ch.CandleService.GetCandles(ctx)
+
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	ctx.IndentedJSON(http.StatusOK, candles)
 }

@@ -3,31 +3,32 @@ package service
 import (
 	"context"
 
+	"elindor/repository"
+	"github.com/jackc/pgx/v5"
+
 	"elindor/domain"
 )
 
 type CandleService interface {
-	GetCandles(ctx context.Context) []domain.Candle
+	GetCandles(ctx context.Context) ([]domain.Candle, error)
 }
 
 type candleService struct {
+	conn *pgx.Conn
 }
 
-func NewCandleService() CandleService {
-	return &candleService{}
+func NewCandleService(conn *pgx.Conn) CandleService {
+	return &candleService{
+		conn: conn,
+	}
 }
 
-func (cs *candleService) GetCandles(ctx context.Context) []domain.Candle {
-	var candles = []domain.Candle{
-		{
-			ID:   "1",
-			Name: "<UNK>",
-		},
-		{
-			ID:   "2",
-			Name: "<UNK>",
-		},
+func (cs *candleService) GetCandles(ctx context.Context) ([]domain.Candle, error) {
+	candles, err := repository.GetCandles(cs.conn)
+
+	if err != nil {
+		return nil, err
 	}
 
-	return candles
+	return candles, nil
 }

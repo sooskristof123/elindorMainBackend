@@ -1,8 +1,8 @@
 package domain
 
 type Candle struct {
-	ID    string
-	Name  string
-	Scent string
-	Price float64
+	ID    string  `json:"-"`
+	Name  string  `json:"name"`
+	Scent string  `json:"scent"`
+	Price float64 `json:"price"`
 }
