@@ -3,10 +3,8 @@ package service
 import (
 	"context"
 
-	"elindor/repository"
-	"github.com/jackc/pgx/v5"
-
 	"elindor/domain"
+	"elindor/repository"
 )
 
 type CandleService interface {
@@ -14,18 +12,22 @@ type CandleService interface {
 }
 
 type candleService struct {
-	conn *pgx.Conn
+	repo *repository.Repository
 }
 
-func NewCandleService(conn *pgx.Conn) CandleService {
+func NewCandleService(repo *repository.Repository) CandleService {
 	return &candleService{
-		conn: conn,
+		repo: repo,
 	}
 }
 
 func (cs *candleService) GetCandles(ctx context.Context) ([]domain.Candle, error) {
-	candles, err := repository.GetCandles(cs.conn)
+	conn, err := cs.repo.GetConnection()
+	if err != nil {
+		return nil, err
+	}
 
+	candles, err := repository.GetCandles(conn)
 	if err != nil {
 		return nil, err
 	}

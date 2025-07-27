@@ -1,4 +1,10 @@
 services:
+  app:
+    build: .
+    image: sooskristof1/elindorbackend
+    ports:
+      - "443:443"
+
   tempo:
     image: grafana/tempo:latest
     volumes:
@@ -28,3 +34,5 @@ services:
           - "3000:3000"
       volumes:
         - ./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+
+

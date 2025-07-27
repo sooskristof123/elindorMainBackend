@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"elindor/handler/response"
 	"elindor/service"
 )
 
@@ -26,7 +28,13 @@ func (ch *CandleHandler) GetCandles(ctx *gin.Context) {
 	candles, err := ch.CandleService.GetCandles(ctx)
 
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		var e response.InternalServerError
+		switch {
+		case errors.As(err, &e):
+			e.RequestID = ctx.GetString("RequestID")
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, e)
+		}
+
 		return
 	}
 

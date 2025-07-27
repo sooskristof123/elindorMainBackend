@@ -12,7 +12,7 @@ import (
 func NewOTelProvider(ctx context.Context) *trace.TracerProvider {
 	provider, err := otlptracehttp.New(ctx,
 		otlptracehttp.WithInsecure(),
-		otlptracehttp.WithEndpoint("localhost:4318"))
+		otlptracehttp.WithEndpoint("ec2-52-23-241-243.compute-1.amazonaws.com:4318"))
 
 	if err != nil {
 		log.Fatalf("failed to create provider: %v", err)
