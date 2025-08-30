@@ -16,6 +16,7 @@ type CandleHandler struct {
 
 func (ch *CandleHandler) CandleEndpoints(router *gin.Engine) {
 	router.GET("candles", ch.GetCandles)
+	router.GET("candles/:id", ch.GetCandleByID)
 }
 
 func NewCandleHandler(candleService service.CandleService) *CandleHandler {
@@ -39,4 +40,35 @@ func (ch *CandleHandler) GetCandles(ctx *gin.Context) {
 	}
 
 	ctx.IndentedJSON(http.StatusOK, candles)
+}
+
+func (ch *CandleHandler) GetCandleByID(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": "Candle ID is required",
+		})
+		return
+	}
+
+	candle, err := ch.CandleService.GetCandleByID(ctx, id)
+
+	if candle == nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"message": "Candle not found",
+		})
+		return
+	}
+
+	if err != nil {
+		var e response.InternalServerError
+		switch {
+		case errors.As(err, &e):
+			e.RequestID = ctx.GetString("RequestID")
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, e)
+		}
+		return
+	}
+
+	ctx.IndentedJSON(http.StatusOK, candle)
 }

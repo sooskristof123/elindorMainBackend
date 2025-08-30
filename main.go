@@ -28,8 +28,10 @@ func main() {
 	}
 
 	candleService := service.NewCandleService(repo)
+	orderService := service.NewOrderService(repo)
 	candleHandler := handler.NewCandleHandler(candleService)
 	healthHandler := handler.NewHealthHandler()
+	orderHandler := handler.NewOrderHandler(orderService)
 
 	collectionService := service.NewCollectionService(repo)
 	collectionHandler := handler.NewCollectionHandler(collectionService)
@@ -49,6 +51,7 @@ func main() {
 	candleHandler.CandleEndpoints(router)
 	collectionHandler.CollectionEndpoints(router)
 	healthHandler.HealthEndpoints(router)
+	orderHandler.OrderEndpoints(router)
 
 	addr := "0.0.0.0:8080"
 	if os.Getenv("ENV") != "local" {

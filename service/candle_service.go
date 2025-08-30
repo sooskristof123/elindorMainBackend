@@ -9,6 +9,7 @@ import (
 
 type CandleService interface {
 	GetCandles(ctx context.Context) ([]domain.Candle, error)
+	GetCandleByID(ctx context.Context, id string) (*domain.Candle, error)
 }
 
 type candleService struct {
@@ -33,4 +34,18 @@ func (cs *candleService) GetCandles(ctx context.Context) ([]domain.Candle, error
 	}
 
 	return candles, nil
+}
+
+func (cs *candleService) GetCandleByID(ctx context.Context, id string) (*domain.Candle, error) {
+	conn, err := cs.repo.GetConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	candle, err := repository.GetCandleByID(conn, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return candle, nil
 }

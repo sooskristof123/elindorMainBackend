@@ -11,7 +11,7 @@ import (
 )
 
 func GetCollections(conn *pgx.Conn) ([]domain.Collection, error) {
-	result, err := conn.Query(context.Background(), "SELECT * FROM data.collections")
+	result, err := conn.Query(context.Background(), "SELECT id, name_hu, name_en FROM data.collections")
 
 	if err != nil {
 		log.Printf("query failed: %v", err)
@@ -38,7 +38,7 @@ func GetCollections(conn *pgx.Conn) ([]domain.Collection, error) {
 
 func GetCollection(conn *pgx.Conn, name string) ([]domain.Candle, error) {
 	result, err := conn.Query(context.Background(),
-		`SELECT *
+		`SELECT id, name_hu, name_en, price_huf, price_eur, price_czk, img_url
          FROM data.candles
          WHERE id IN (
              SELECT data.collections_candles.candles_id
@@ -57,7 +57,7 @@ func GetCollection(conn *pgx.Conn, name string) ([]domain.Candle, error) {
 	var candles []domain.Candle
 	for result.Next() {
 		var c domain.Candle
-		err := result.Scan(&c.ID, &c.NameHU, &c.NameEN, &c.PriceHUF, &c.PriceEUR)
+		err := result.Scan(&c.ID, &c.NameHU, &c.NameEN, &c.PriceHUF, &c.PriceEUR, &c.PriceCZK, &c.ImageURL)
 
 		if err != nil {
 			log.Printf("scan failed: %v", err)
