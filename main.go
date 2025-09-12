@@ -31,7 +31,7 @@ func main() {
 	orderService := service.NewOrderService(repo)
 	candleHandler := handler.NewCandleHandler(candleService)
 	healthHandler := handler.NewHealthHandler()
-	orderHandler := handler.NewOrderHandler(orderService)
+	orderHandler := handler.NewOrderHandler(orderService, candleService)
 
 	collectionService := service.NewCollectionService(repo)
 	collectionHandler := handler.NewCollectionHandler(collectionService)

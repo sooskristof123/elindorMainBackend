@@ -2,28 +2,33 @@ package handler
 
 import (
 	"context"
-	"elindor/domain"
-	"elindor/service"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
-
+	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/checkout/session"
 	"github.com/stripe/stripe-go/v76/webhook"
+
+	"elindor/domain"
+	"elindor/service"
 )
 
 type createOrderRequest struct {
-	Email   string              `json:"email" binding:"required,email"`
-	Candles []domain.CandleItem `json:"candles" binding:"required"`
+	Currency    *string             `json:"currency"`
+	Email       string              `json:"email" binding:"required,email"`
+	Address     *domain.Address     `json:"address"`
+	PickupPoint *string             `json:"pickup_point"`
+	Candles     []domain.CandleItem `json:"candles" binding:"required"`
 }
 
 type OrderHandler struct {
-	OrderService service.OrderService
+	OrderService  service.OrderService
+	CandleService service.CandleService
 }
 
 func (oh *OrderHandler) OrderEndpoints(router *gin.Engine) {
@@ -32,9 +37,10 @@ func (oh *OrderHandler) OrderEndpoints(router *gin.Engine) {
 	router.POST("orders/webhook", oh.HandleStripeWebhook)
 }
 
-func NewOrderHandler(orderService service.OrderService) *OrderHandler {
+func NewOrderHandler(orderService service.OrderService, candleService service.CandleService) *OrderHandler {
 	return &OrderHandler{
 		orderService,
+		candleService,
 	}
 }
 
@@ -45,6 +51,66 @@ func (oh *OrderHandler) CreateOrder(ctx *gin.Context) {
 			"message": "Invalid request: " + err.Error(),
 		})
 		return
+	}
+
+	// Validation
+	if req.Address == nil && req.PickupPoint == nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": "Either address or pickup point must be provided",
+		})
+		return
+	}
+	if req.Address != nil {
+		if req.Address.Country == "" || req.Address.City == "" || req.Address.Zip == "" || req.Address.Street == "" {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": "Incomplete address information",
+			})
+			return
+		}
+	} else if req.PickupPoint != nil {
+		if *req.PickupPoint == "" {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": "Pickup point cannot be empty",
+			})
+			return
+		}
+	}
+
+	// Candle price validation
+	if req.Currency == nil || *req.Currency == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": "Currency is required",
+		})
+		return
+	}
+	currency := *req.Currency
+	for _, candle := range req.Candles {
+		candleData, err := oh.CandleService.GetCandleByID(ctx, candle.ID.String())
+		if err != nil || candleData == nil {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": "Invalid candle ID: " + candle.ID.String(),
+			})
+			return
+		}
+		var expectedPrice int64
+		if currency == "huf" {
+			expectedPrice = int64(math.Round(candleData.PriceHUF))
+		} else if currency == "eur" {
+			expectedPrice = int64(math.Round(candleData.PriceEUR))
+		} else if currency == "czk" {
+			expectedPrice = int64(math.Round(candleData.PriceCZK))
+		} else {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": "Unsupported currency: " + currency,
+			})
+			return
+		}
+		if candle.Price != expectedPrice {
+			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": "Candle price mismatch for candle ID: " + candle.ID.String(),
+			})
+			return
+		}
 	}
 
 	// 1. Create order in DB
@@ -67,7 +133,20 @@ func (oh *OrderHandler) CreateOrder(ctx *gin.Context) {
 		}
 	}
 
-	// 3. Convert candles into Stripe line items
+	// 3. Add address to order
+	if req.Address == nil {
+		err = oh.OrderService.AddPickUpPointToOrder(ctx, orderID, *req.PickupPoint)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"message": "Failed to add pickup point to order: " + err.Error(),
+			})
+			return
+		}
+	} else {
+		err = oh.OrderService.AddAddressToOrder(ctx, orderID, *req.Address)
+	}
+
+	// 4. Convert candles into Stripe line items
 	stripe.Key = os.Getenv("STRIPE_SECRET")
 	var lineItems []*stripe.CheckoutSessionLineItemParams
 	for _, candle := range req.Candles {
