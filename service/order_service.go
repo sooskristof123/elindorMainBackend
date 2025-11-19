@@ -10,11 +10,12 @@ import (
 )
 
 type OrderService interface {
-	CreateOrder(ctx context.Context, email string) (uuid.UUID, error)
+	CreateOrder(ctx context.Context, email, firstName, lastName string, phone *string, promotionID *string, totalPrice int64, discountedPrice *int64, shippingPrice int64, billingAddressMatch bool, billingCountry, billingCity, billingZip, billingStreet, billingLine1 *string) (uuid.UUID, error)
 	AddCandlesToOrder(ctx context.Context, orderID uuid.UUID, candleID uuid.UUID, quantity int) error
 	AddPickUpPointToOrder(ctx context.Context, orderID uuid.UUID, pickUpPoint string) error
 	AddAddressToOrder(ctx context.Context, orderID uuid.UUID, address domain.Address) error
 	UpdatePayedOrder(ctx context.Context, orderID uuid.UUID, sessionID string) error
+	GetOrderWithCandles(ctx context.Context, orderID uuid.UUID) (*domain.OrderWithCandles, error)
 }
 
 type orderService struct {
@@ -27,13 +28,13 @@ func NewOrderService(repo *repository.Repository) OrderService {
 	}
 }
 
-func (os *orderService) CreateOrder(ctx context.Context, email string) (uuid.UUID, error) {
+func (os *orderService) CreateOrder(ctx context.Context, email, firstName, lastName string, phone *string, promotionID *string, totalPrice int64, discountedPrice *int64, shippingPrice int64, billingAddressMatch bool, billingCountry, billingCity, billingZip, billingStreet, billingLine1 *string) (uuid.UUID, error) {
 	conn, err := os.repo.GetConnection()
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	orderID, err := repository.CreateOrder(conn, email)
+	orderID, err := repository.CreateOrder(conn, email, firstName, lastName, phone, promotionID, totalPrice, discountedPrice, shippingPrice, billingAddressMatch, billingCountry, billingCity, billingZip, billingStreet, billingLine1)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -95,4 +96,18 @@ func (os *orderService) UpdatePayedOrder(ctx context.Context, orderID uuid.UUID,
 	}
 
 	return nil
+}
+
+func (os *orderService) GetOrderWithCandles(ctx context.Context, orderID uuid.UUID) (*domain.OrderWithCandles, error) {
+	conn, err := os.repo.GetConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	orderWithCandles, err := repository.GetOrderWithCandles(conn, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	return orderWithCandles, nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"gopkg.in/gomail.v2"
 
 	"elindor/handler"
 	"elindor/middleware"
@@ -21,17 +22,21 @@ func main() {
 	tp := otel.NewOTelProvider(ctx)
 	tp.Tracer("elindor-app").Start(ctx, "main")
 	defer tp.Shutdown(ctx)
+	d := gomail.NewDialer("smtp.gmail.com", 587, "hello@elindorcandle.com", os.Getenv("SMTP_PASSWORD"))
 
 	repo, err := repository.NewRepository()
 	if err != nil {
 		panic(err)
 	}
 
+	mailService := service.NewMailService(*d)
 	candleService := service.NewCandleService(repo)
 	orderService := service.NewOrderService(repo)
+	promotionService := service.NewPromotionService(repo)
 	candleHandler := handler.NewCandleHandler(candleService)
 	healthHandler := handler.NewHealthHandler()
-	orderHandler := handler.NewOrderHandler(orderService, candleService)
+	orderHandler := handler.NewOrderHandler(orderService, candleService, mailService, promotionService)
+	promotionHandler := handler.NewPromotionHandler(promotionService)
 
 	collectionService := service.NewCollectionService(repo)
 	collectionHandler := handler.NewCollectionHandler(collectionService)
@@ -52,6 +57,7 @@ func main() {
 	collectionHandler.CollectionEndpoints(router)
 	healthHandler.HealthEndpoints(router)
 	orderHandler.OrderEndpoints(router)
+	promotionHandler.PromotionEndpoints(router)
 
 	addr := "0.0.0.0:8080"
 	if os.Getenv("ENV") != "local" {
